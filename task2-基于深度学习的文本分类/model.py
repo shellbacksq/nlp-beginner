@@ -6,12 +6,18 @@ import torch.nn.functional as F
 class TextRNN(nn.Module):
     def __init__(self,config):
         super(TextRNN,self).__init__()
-        vocab_size,embed_size,hidden_size,num_layers,num_class,dropout=\
-        config.vocab_size,config.embed_size,config.hidden_size,config.num_layers,config.num_class,config.dropout
-        
-        self.embedding=nn.Embedding(vocab_size,embed_size)
-        self.rnn=nn.LSTM(embed_size,hidden_size,num_layers,bidirectional=True,batch_first=True,dropout=dropout)
-        self.fc=nn.Linear(hidden_size*2,num_class)
+        self.embedding=nn.Embedding(config.vocab_size,
+                                    config.embed_size)
+
+        self.rnn=nn.LSTM(config.embed_size,
+                        config.hidden_size,
+                        config.num_layers,
+                        bidirectional=True,
+                        batch_first=True,
+                        dropout=config.dropout)
+
+        self.fc=nn.Linear(config.hidden_size*2,
+                        config.num_class)
 
     def forward(self,x):
         x=self.embedding(x)
@@ -23,7 +29,8 @@ class TextRNN(nn.Module):
 class TextCNN(nn.Module):
     def __init__(self,config):
         super(TextCNN, self).__init__()
-        self.embedding = nn.Embedding(5000, 64)
+        self.embedding = nn.Embedding(config.vocab_size,
+                                     config.embed_size)
         self.conv = nn.Sequential(nn.Conv1d(in_channels=64,
                                         out_channels=256,
                                         kernel_size=5),

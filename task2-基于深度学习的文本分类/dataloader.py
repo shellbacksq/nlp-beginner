@@ -66,7 +66,7 @@ if __name__=='__main__':
     vocab_file='/data02/data/corpus/cnews/cnews.vocab.txt'
     train_file='/data02/data/corpus/cnews/cnews.train.txt'
     vocab=build_vocab(vocab_file)
-    mydataset=TextRNNSet(train_file,vocab)
+    mydataset=TextSet(train_file,vocab)
     train_data=DataLoader(mydataset,batch_size=3,shuffle=True,num_workers=3)
     for i,(sent,label) in enumerate(train_data):
         print(sent,label)

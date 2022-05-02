@@ -1,16 +1,28 @@
 
 import time
+import argparse				#
+
 import torch
 import torch.nn as nn
 from tensorboardX import SummaryWriter
 from sklearn import metrics
+from torchinfo import summary
+
 
 from dataloader import build_loader,build_vocab,TextSet
-from config import TextRNNConfig
-from model import TextRNN
+from config import TextRNNConfig,TextCNNConfig
+from model import TextRNN,TextCNN
 
 # 模型参数
-config=TextRNNConfig()
+parser = argparse.ArgumentParser()
+parser.add_argument('--model',type=str,default='TextRNN',help='TextRNN or TextCNN')
+args=parser.parse_args()
+if args.model=='textrnn':
+    config=TextRNNConfig()
+    Model=TextRNN
+elif args.model=='textcnn':
+    config=TextCNNConfig()
+    Model=TextCNN
 
 # tensorboard记录
 writer = SummaryWriter(log_dir=config.log_path + '/' + time.strftime('%m-%d_%H.%M', time.localtime()))
@@ -22,8 +34,8 @@ val_file='/data02/data/corpus/cnews/cnews.val.txt'
 vocab=build_vocab(vocab_file)
 config.vocab_size=len(vocab)
 
-train_dataset=TextSet(train_file,vocab)
-val_dataset=TextSet(val_file,vocab)
+train_dataset=TextSet(train_file,vocab,config.pad_size)
+val_dataset=TextSet(val_file,vocab,config.pad_size)
 
 train_data=build_loader(train_dataset,config)
 val_data=build_loader(val_dataset,config)
@@ -35,10 +47,13 @@ device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def train():
     # 定义模型
-    model=TextRNN(config)
-    writer.add_graph(model)
-
-    print(model)
+    model=Model(config)
+    summary(model,(config.batch_size,config.pad_size),
+                dtypes=[torch.long],
+                verbose=1,
+                col_width=16,
+                col_names=["input_size","kernel_size", "output_size", "num_params", "mult_adds"],)
+    # print(model)
     model.to(device)
     # 定义优化器
     optimizer=torch.optim.Adam(model.parameters(),lr=config.lr)
@@ -48,6 +63,7 @@ def train():
     for epoch in range(config.num_epochs):
         for step,(x,y) in enumerate(train_data):
             # 训练
+            
             x=x.to(device)
             y=y.to(device)
             output=model(x)
@@ -69,11 +85,14 @@ def train():
                 writer.add_scalar('loss',loss.cpu().data.numpy(),epoch*len(train_data)+step)
                 writer.add_scalar('acc',train_acc,epoch*len(train_data)+step)
 
+                
+                # writer.add_graph(model,x)
                 # 测试集表现
                 evaluate(model,loss_func,val_data,epoch)
                 model.train()
+                
     # 保存模型
-    torch.save(model.state_dict(),'textrnn.pth')
+    torch.save(model.state_dict(),'{}.pth'.format(args.model))
 
 
 def evaluate(model,Loss,val_data,epoch):
