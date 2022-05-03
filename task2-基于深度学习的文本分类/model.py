@@ -6,7 +6,10 @@ import torch.nn.functional as F
 class TextRNN(nn.Module):
     def __init__(self,config):
         super(TextRNN,self).__init__()
-        self.embedding=nn.Embedding(config.vocab_size,
+        if config.embedding_pretrained is not None:
+            self.embedding = nn.Embedding.from_pretrained(config.embedding_pretrained, freeze=False)
+        else:
+            self.embedding=nn.Embedding(config.vocab_size,
                                     config.embed_size)
 
         self.rnn=nn.LSTM(config.embed_size,
@@ -29,9 +32,12 @@ class TextRNN(nn.Module):
 class TextCNN(nn.Module):
     def __init__(self,config):
         super(TextCNN, self).__init__()
-        self.embedding = nn.Embedding(config.vocab_size,
+        if config.embedding_pretrained is not None:
+            self.embedding = nn.Embedding.from_pretrained(config.embedding_pretrained, freeze=False)
+        else:
+            self.embedding = nn.Embedding(config.vocab_size,
                                      config.embed_size)
-        self.conv = nn.Sequential(nn.Conv1d(in_channels=64,
+        self.conv = nn.Sequential(nn.Conv1d(in_channels=300,
                                         out_channels=256,
                                         kernel_size=5),
                               nn.ReLU(),
