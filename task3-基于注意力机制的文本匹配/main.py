@@ -5,35 +5,27 @@ from aim import Run
 
 import torch
 import torch.nn as nn
-
-
-
 from tensorboardX import SummaryWriter
+
+
+
 from sklearn import metrics
 from torchinfo import summary
 
-
-
 from dataloader import build_loader,build_vocab,TextSet
-from config import TextRNNConfig,TextCNNConfig
-from model import TextRNN,TextCNN
+from config import TextRNN_AttConfig
+from model import TextRNN_Att
 
-
-
-# import wandb
-
-# wandb.init(project="text-classifier", entity="vitosq")
 
 # 模型参数
 parser = argparse.ArgumentParser()
-parser.add_argument('--model',type=str,default='TextRNN',help='TextRNN or TextCNN')
+parser.add_argument('--model',type=str,default='textrnn_att')
 args=parser.parse_args()
-if args.model=='textrnn':
-    config=TextRNNConfig()
-    Model=TextRNN
-elif args.model=='textcnn':
-    config=TextCNNConfig()
-    Model=TextCNN
+if args.model=='textrnn_att':
+    config=TextRNN_AttConfig()
+    Model=TextRNN_Att
+else:
+    raise ValueError('model type error')
 
 
 
@@ -47,19 +39,15 @@ val_file='/data02/data/corpus/cnews/cnews.val.txt'
 vocab=build_vocab(vocab_file)
 config.vocab_size=len(vocab)
 
-# 实验记录
-# wandb.config = {
+
+run_log = Run(experiment='TextRNN_Att')  
+run_log["hparams"]=config.to_dict()
+
+# run_log["hparams"] = {
 #   "learning_rate": config.lr,
 #   "epochs": config.num_epochs,
 #   "batch_size": config.batch_size
 # }
-
-run_log = Run()   
-run_log["hparams"] = {
-  "learning_rate": config.lr,
-  "epochs": config.num_epochs,
-  "batch_size": config.batch_size
-}
 
 train_dataset=TextSet(train_file,vocab,config.pad_size)
 val_dataset=TextSet(val_file,vocab,config.pad_size)
@@ -67,7 +55,7 @@ val_dataset=TextSet(val_file,vocab,config.pad_size)
 train_data=build_loader(train_dataset,config)
 val_data=build_loader(val_dataset,config)
 device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device='cpu'
+
 
 
 
@@ -90,6 +78,10 @@ def train():
     # 定义损失函数
     loss_func=nn.CrossEntropyLoss()
     # 开始训练
+    total_batch = 0  # 记录进行到多少batch
+    dev_best_loss = float('inf')
+    last_improve = 0  # 记录上次验证集loss下降的batch数
+    flag = False  # 记录是否很久没有效果提升
     for epoch in range(config.num_epochs):
         for step,(x,y) in enumerate(train_data):
             # 训练
@@ -102,26 +94,41 @@ def train():
             optimizer.step()
             # 打印
             if step%100==0:
-                # wandb.log({"loss": loss.cpu().data.numpy()})
+                # 训练集表现
                 run_log.track(loss.cpu().data.numpy(), name='loss', step=step, context={ "subset":"train" })
-                # 每多少轮输出在训练集和验证集上的效果
                 true = y.data.cpu()
-                # print(true)
-                # print(y.data)
                 predic = torch.max(output.data, 1)[1].cpu()
                 train_acc = metrics.accuracy_score(true, predic)
-                # msg = 'Epoch: {0:>6}, Step: {0:>6}, Train Loss: {},  Train Acc: {}'
-                # print(msg.format(epoch, step, loss.cpu().data.numpy(), train_acc))
+
+                # 验证集表现
+                dev_loss,dev_acc=evaluate(model,loss_func,val_data,epoch)
+                model.train()
+
+                if dev_loss < dev_best_loss:
+                    dev_best_loss = dev_loss
+                    torch.save(model.state_dict(),'{}.pth'.format(args.model))
+                    last_improve = total_batch                
+
+
                 print('Epoch:',epoch,'|Step:',step,'|train loss:%.4f'%loss.cpu().data.numpy(),'acc',train_acc)
                 writer.add_scalar('loss',loss.cpu().data.numpy(),epoch*len(train_data)+step)
                 writer.add_scalar('acc',train_acc,epoch*len(train_data)+step)
 
                 
                 # writer.add_graph(model,x)
-                # 测试集表现
+                # 验证集表现
                 evaluate(model,loss_func,val_data,epoch)
                 model.train()
-                
+            total_batch += 1
+            if total_batch - last_improve > config.require_improvement:
+                # 验证集loss超过1000batch没下降，结束训练
+                print("No optimization for a long time, auto-stopping...")
+                flag = True
+                break
+        if flag:
+            break
+
+    writer.close()
     # 保存模型
     torch.save(model.state_dict(),'{}.pth'.format(args.model))
 
@@ -143,6 +150,7 @@ def evaluate(model,Loss,val_data,epoch):
     print('val loss:%.4f'%val_loss,'val acc:%.4f'%val_acc)
     writer.add_scalar('val_loss',val_loss,epoch)
     writer.add_scalar('val_acc',val_acc,epoch)
+    return val_loss,val_acc
 
 # 权重初始化，默认xavier
 def init_network(model, method='xavier', exclude='embedding', seed=123):

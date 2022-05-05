@@ -2,3 +2,5 @@ __pycacahe__/*
 log
 *.pyc
 *.pth
+.aim
+wandb
