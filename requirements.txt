@@ -1,0 +1,6 @@
+torch
+aim
+tensorboardX
+scikit-learn
+torchinfo
+numpy
