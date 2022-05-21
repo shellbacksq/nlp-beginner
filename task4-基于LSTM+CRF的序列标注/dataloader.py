@@ -189,9 +189,10 @@ def build_pretrain(vocab_file,pretrain_raw,pretrain_file):
 
 
 if __name__=='__main__':
-    input_file='/data02/data/corpus/rmrb/rmrb199801.txt'
-    output_file='/data02/data/corpus/rmrb/rmrb199801.txt.process'
-    out_dir='/data02/data/corpus/rmrb/'
+
+    input_file='/data/data/corpus/rmrb/rmrb199801.txt'
+    output_file='/data/data/corpus/rmrb/rmrb199801.txt.process'
+    out_dir='/data/data/corpus/rmrb/'
     # vocab=build_vocab(vocab_file)
     # mydataset=TextSet(train_file,vocab)
     # train_data=DataLoader(mydataset,batch_size=3,shuffle=True,num_workers=3)
