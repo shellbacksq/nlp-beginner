@@ -17,6 +17,8 @@ def build_vocab(vocab_file,is_vocab_exist=True):
                 vocab_dict[word]=len(vocab_dict)+1
             vocab_dict.update({UNK: len(vocab_dict), PAD: 0})
             return vocab_dict
+def id2word(ids,vocab_dev):
+    return "".join(vocab_dev.get(id) for id in ids if id !=0)
 
 def category2id():
     categories = ['体育', '财经', '房产', '家居', '教育', '科技', '时尚', '时政', '游戏', '娱乐']

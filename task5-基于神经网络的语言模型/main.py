@@ -1,7 +1,7 @@
 
 import time
 import argparse		
-from aim import Run
+from aim import Run,Text
 
 import torch
 import torch.nn as nn
@@ -29,8 +29,7 @@ else:
 
 
 
-# tensorboard记录
-writer = SummaryWriter(log_dir=config.log_path + '/' + time.strftime('%m-%d_%H.%M', time.localtime()))
+
 
 # 准备数据
 vocab_file='/data/data/corpus/poetry/poetryFromTang.txt'
@@ -40,8 +39,7 @@ vocab=build_vocab(vocab_file)
 config.vocab_size=len(vocab)
 
 
-run_log = Run(experiment='LSTM-LanguageModel')  
-run_log["hparams"]=config.to_dict()
+
 
 
 
@@ -58,12 +56,18 @@ device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def train():
+    #------------------模型实验记录-----------------#
+    # aim记录
+    run_log = Run(experiment='LSTM-LanguageModel')  
+    run_log["hparams"]=config.to_dict()
+
+    # tensorboard记录
+    writer = SummaryWriter(log_dir=config.log_path + '/' + time.strftime('%m-%d_%H.%M', time.localtime()))
     # 定义模型
     model=Model(config)
-    # for name, w in model.named_parameters():
-    #     print(name, '\t', w.shape)
+
     init_network(model)
-    # summary(model,(config.batch_size,config.pad_size),
+    # summary(model,[(config.batch_size,config.pad_size),(config.batch_size,config.pad_size)],
     #             dtypes=[torch.long],
     #             verbose=1,
     #             col_width=16,
